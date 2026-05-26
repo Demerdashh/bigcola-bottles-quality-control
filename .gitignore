@@ -1,0 +1,17 @@
+# Jupyter 
+.ipynb_checkpoints/         # auto-created every time you open a notebook
+
+# YOLO training output
+runs/    
+
+obj_train_data/
+augmented_data/
+datasets/
+
+
+__pycache__/
+*.pyc
+*.pyo
+
+.DS_Store
+Thumbs.db

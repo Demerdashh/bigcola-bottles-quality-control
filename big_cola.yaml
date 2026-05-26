@@ -1,0 +1,10 @@
+path: /content/augmented_data
+train: /content/train_aug.txt
+val: /content/val_aug.txt
+nc: 5
+names:
+- Perfect_bottle
+- empty_bottle
+- no_cap
+- no_label
+- crooked_cap

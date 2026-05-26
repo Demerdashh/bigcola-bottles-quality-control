@@ -1,0 +1,11 @@
+# Core
+ultralytics>=8.0.0
+albumentations>=1.3.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+matplotlib>=3.7.0 #(one depricated (plt.cm.get_cmap('tab10', NUM_CLASSES) ======> plt.colormaps['tab10'])
+tqdm>=4.65.0
+PyYAML>=6.0
+
+# Colab/Drive (pre-installed in Colab listed here for reference)
+# google-colab

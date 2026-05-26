@@ -1,0 +1,61 @@
+{
+  "project": "Big Cola Bottle Quality Control",
+  "description": "End-to-end YOLOv8 object detection pipeline for industrial bottle quality control on a simulated conveyor belt. Dataset built from scratch via manual image capture and annotation.",
+
+  "model": {
+    "architecture": "YOLO26n",
+    "weights_source": "Ultralytics pretrained (yolo26n.pt)",
+    "optimizer": "AdamW",
+    "imgsz": 640,
+    "batch_size": 16,
+    "epochs_budget": 100,
+    "early_stopping_patience": 20,
+    "seed": 42
+  },
+
+  "dataset": {
+    "name": "Big Cola Bottles Quality Control Dataset",
+    "source": "Manually captured — physical bottles on a black-paper conveyor simulation",
+    "num_classes": 5,
+    "class_names": [
+      "Perfect_bottle",
+      "empty_bottle",
+      "no_cap",
+      "no_label",
+      "crooked_cap"
+    ],
+    "raw_images": 376,
+    "augmentation_target_per_class": 250,
+    "val_ratio": 0.15,
+    "augmentation_library": "Albumentations",
+    "dataset_hash_sha256_prefix": "26a0b22513643732"
+  },
+
+  "training_split": {
+    "train_images": "907  (319 unique scenes)",
+    "val_images": "160  (57 unique scenes)",
+    "split_strategy": "Grouped by original image stem — augmented versions always in same split as their source image (leakage-safe)"
+  },
+
+  "results": {
+    "run": "experiment_augmented",
+    "mAP50": "0.9950",
+    "mAP50_95": "0.9424",
+    "precision": "0.9899",
+    "recall": "0.9974"
+  },
+
+  "limitations": [
+    "Trained on a simulated conveyor environment (black paper background) — may need fine-tuning for real factory lighting conditions",
+    "Small dataset (376 raw images) — performance on rare edge cases may degrade",
+    "3 missed detections observed on held-out test video — primarily low-contrast or partially occluded bottles"
+  ],
+
+  "intended_use": "Quality control detection of Big Cola bottle conditions on a conveyor belt. Classifies bottles as perfect, empty, missing cap, missing label, or crooked cap.",
+
+  "pipeline_notes": "Six pipeline bugs were documented and fixed during development. Full post-mortem available in docs/engineering_debrief.md. Dataset fingerprinted with SHA-256 before training to ensure reproducibility.",
+
+  "created_by": "Youssef El Demerdash",
+  "framework": "Ultralytics YOLO26",
+  "kaggle_dataset": "https://www.kaggle.com/datasets/youssefeldemerdashh/big-cola-bottles-dataset-for-yolo-quality-control"
+}

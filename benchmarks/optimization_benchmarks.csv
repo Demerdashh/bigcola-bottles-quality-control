@@ -1,0 +1,9 @@
+Environment,Model Format,Math Precision,Latency Metric,Score / Time,Performance Context
+Local CPU,PyTorch Baseline,FP32,Mean Latency,386.9 ms,Baseline unoptimized CPU speed
+Local CPU,ONNX Runtime,FP32,Mean Latency,164.2 ms,57.5% faster on edge hardware
+Colab T4 GPU,PyTorch Baseline,FP32,Mean Latency,13.95 ms,Baseline unoptimized GPU speed
+Colab T4 GPU,PyTorch Baseline,FP32,Accuracy (mAP50−95​),0.9540,Reference validation score
+Colab T4 GPU,TensorRT Engine,FP16,Mean Latency,5.61 ms,59.8% faster than GPU baseline
+Colab T4 GPU,TensorRT Engine,FP16,P50​ (Median),5.51 ms,Typical real-world frame speed
+Colab T4 GPU,TensorRT Engine,FP16,P99​ (Worst Case),8.82 ms,Maximum latency safety floor
+Colab T4 GPU,TensorRT Engine,FP16,Accuracy (mAP50−95​),0.9504,Negligible 0.36% drop

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document records the six critical bugs encountered and resolved during the development of the Big Cola quality-control CV pipeline. Each bug is documented with its root cause, how it was diagnosed, and the architectural fix applied.
+This document records the seven critical issues encountered and resolved during the development of the Big Cola quality-control CV pipeline — six pipeline/data bugs from the dataset and training stages, and one methodology lesson from the inference optimization stage. Each is documented with its root cause, how it was diagnosed, and the fix applied.
 
 ---
 
@@ -125,9 +125,50 @@ img = cv2.imread(str(img_path))
 
 ---
 
+## Bug/Lesson 7 — Benchmark Methodology Matters as Much as the Model
+
+**Stage:** Inference optimization (ONNX export / TensorRT quantization)  
+**Symptom:** Ad-hoc single-shot latency timing risked producing misleading numbers before any results were finalized — no warm-up discard and no repeated sampling meant a single lucky or unlucky run could stand in for "the" latency figure, and there was no accuracy check on the quantized model at all.
+
+**Root Cause:** Timing a model once (or a few times) and reporting that number as "the" latency conflates cold-start overhead (CUDA context init, memory allocation, kernel warm-up) with steady-state inference speed. Separately, FP16 quantization changes numerical precision in the model's compute graph — assuming accuracy is unaffected without measuring it is an unvalidated claim, not a fact.
+
+**Fix:** Adopted N=100 averaged inference runs with the first 10 iterations discarded as warm-up, at batch size = 1, reporting mean, P50, and P99 latency rather than a single number. Re-ran `model.val()` on the exported TensorRT engine to measure mAP50-95 directly, rather than assuming the PyTorch baseline's accuracy carried over unchanged.
+
+```python
+# WRONG — single timed run, no warm-up, no accuracy check
+import time
+t0 = time.time()
+model(frame)
+latency = time.time() - t0
+
+# CORRECT — warm-up discard, repeated sampling, distribution reporting
+for _ in range(10):
+    model(frame)  # warm-up, discarded
+
+latencies = []
+for _ in range(100):
+    t0 = time.time()
+    model(frame)
+    latencies.append(time.time() - t0)
+
+import numpy as np
+mean_lat = np.mean(latencies)
+p50 = np.percentile(latencies, 50)
+p99 = np.percentile(latencies, 99)
+
+# Accuracy re-validated on the exported engine, not assumed:
+metrics = trt_model.val(data='big_cola.yaml')  # compare mAP50-95 vs. PyTorch baseline
+```
+
+**Result:** TensorRT FP16 on the T4 GPU delivered a 59.8% latency reduction (13.95ms → 5.61ms, P99 8.82ms) with only a 0.36% mAP50-95 drop (0.9540 → 0.9504) — a quantified tradeoff rather than an assumed one. ONNX on edge CPU delivered a 57.5% reduction (386.9ms → 164.2ms).
+
+**Lesson:** A benchmark is only as credible as its methodology. Reporting mean-only latency from a single run, or reporting a speed gain without checking whether accuracy held, are both easy to do and both undermine the credibility of every other number in the README. This is the same principle as Bugs 1–6: don't let a pipeline stage produce a number (or a label, or a file) that hasn't been explicitly validated.
+
+---
+
 ## Summary Table
 
-| # | Bug | Stage | Detection Method | Severity |
+| # | Issue | Stage | Detection Method | Severity |
 |---|---|---|---|---|
 | 1 | Double coordinate transformation | Augmentation | Visual bbox inspection | High |
 | 2 | Float class ID parsing failure | Validation | Hard crash (ValueError) | High |
@@ -135,18 +176,20 @@ img = cv2.imread(str(img_path))
 | 4 | Negative bbox dimensions from aggressive Affine | Augmentation | Post-augmentation validity scan | Medium |
 | 5 | Visualizer fallback duplicating images | QA / Visualization | Manual grid inspection | Medium |
 | 6 | Stale path dictionary causing cv2 crash | Visualization | Intermittent crash (cv2.error) | Medium |
+| 7 | Unvalidated benchmark methodology (no warm-up/averaging, no post-quantization accuracy check) | Optimization | Statistical review of raw latency samples + re-run `model.val()` | Medium |
 
 ---
 
 ## Architectural Principles Applied After Debugging
 
-These six bugs led directly to the following design rules that are now encoded into the pipeline architecture:
+These seven issues led directly to the following design rules that are now encoded into the pipeline architecture:
 
 1. **Idempotency** — every run produces the same output regardless of previous state (OUTPUT_DIR wipe enforces this)
 2. **No silent failures** — every validation step either passes with a confirmation message or raises a hard assertion, never continues quietly with bad data
 3. **Reproducibility** — SHA-256 dataset fingerprinting ensures the exact same data goes into every training run
 4. **Dynamic path resolution** — file paths are resolved fresh at the point of use, never cached across stages that modify the filesystem
 5. **Separation of raw and derived data** — the original labeled dataset is never modified by the pipeline; all transforms operate on copies
+6. **No unvalidated performance claims** — latency numbers are only reported as distributions (mean/P50/P99) over repeated, warm-up-adjusted runs, and any optimization that changes numerical precision (e.g. FP16 quantization) must have its accuracy impact measured, not assumed
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document records the seven critical issues encountered and resolved during the development of the Big Cola quality-control CV pipeline — six pipeline/data bugs from the dataset and training stages, and one methodology lesson from the inference optimization stage. Each is documented with its root cause, how it was diagnosed, and the fix applied.
+This document records the nine issues encountered and resolved during the development of the Big Cola quality-control CV pipeline: eight pipeline, data and evaluation bugs, and one methodology lesson from the inference optimization stage. Bugs 8 and 9 were found in an October 2026 audit of the original results and led to a clean rerun. Each is documented with its root cause, how it was diagnosed, and the fix applied.
 
 ---
 
@@ -127,42 +127,43 @@ img = cv2.imread(str(img_path))
 
 ## Bug/Lesson 7 — Benchmark Methodology Matters as Much as the Model
 
-**Stage:** Inference optimization (ONNX export / TensorRT quantization)  
-**Symptom:** Ad-hoc single-shot latency timing risked producing misleading numbers before any results were finalized — no warm-up discard and no repeated sampling meant a single lucky or unlucky run could stand in for "the" latency figure, and there was no accuracy check on the quantized model at all.
+**Stage:** Inference optimization (TensorRT export and benchmarking)
 
-**Root Cause:** Timing a model once (or a few times) and reporting that number as "the" latency conflates cold-start overhead (CUDA context init, memory allocation, kernel warm-up) with steady-state inference speed. Separately, FP16 quantization changes numerical precision in the model's compute graph — assuming accuracy is unaffected without measuring it is an unvalidated claim, not a fact.
+**Problem:** The first optimization numbers could not be trusted. The CPU comparison timed different things for PyTorch and ONNX, GPU latency came from an ad-hoc loop, and the accuracy figures were scored on a validation set that had silently changed between sessions (see Bug 8).
 
-**Fix:** Adopted N=100 averaged inference runs with the first 10 iterations discarded as warm-up, at batch size = 1, reporting mean, P50, and P99 latency rather than a single number. Re-ran `model.val()` on the exported TensorRT engine to measure mAP50-95 directly, rather than assuming the PyTorch baseline's accuracy carried over unchanged.
+**Fix:** One shared timing loop for every format: batch 1, 50 warm-up calls discarded, 500 timed calls, CUDA-synchronized. Two scopes are reported separately: model-only (a 640x640 tensor already on the GPU) and end-to-end (from a JPEG file path, including decode and resize). Latency is reported as a distribution (mean, p50, p95, p99), and accuracy is re-measured on the same 57 original validation images for every format. The invalid CPU comparison was removed.
 
-```python
-# WRONG — single timed run, no warm-up, no accuracy check
-import time
-t0 = time.time()
-model(frame)
-latency = time.time() - t0
+**Result:** TensorRT FP16 cut model-only mean latency 67% (11.98 to 3.96 ms) and p99 76% (20.18 to 4.91 ms) with no measurable mAP50-95 change (0.977 to 0.978, within noise on 57 images). TensorRT INT8 (calibrated on 500 training images) lost 1.6 points of mAP50-95 and was not faster than FP16 at batch 1, so it was rejected. End to end, inference is only about 3% of the latency; decoding 12 MP JPEGs dominates.
 
-# CORRECT — warm-up discard, repeated sampling, distribution reporting
-for _ in range(10):
-    model(frame)  # warm-up, discarded
+**Lesson:** A speedup is only a result if the timing method is the same for every candidate and accuracy was measured, not assumed, after every precision change. Report what the number includes.
 
-latencies = []
-for _ in range(100):
-    t0 = time.time()
-    model(frame)
-    latencies.append(time.time() - t0)
+---
 
-import numpy as np
-mean_lat = np.mean(latencies)
-p50 = np.percentile(latencies, 50)
-p99 = np.percentile(latencies, 99)
+## Bug 8 — The validation set changed between Colab sessions
 
-# Accuracy re-validated on the exported engine, not assumed:
-metrics = trt_model.val(data='big_cola.yaml')  # compare mAP50-95 vs. PyTorch baseline
-```
+**Stage:** Evaluation
 
-**Result:** TensorRT FP16 on the T4 GPU delivered a 59.8% latency reduction (13.95ms → 5.61ms, P99 8.82ms) with only a 0.36% mAP50-95 drop (0.9540 → 0.9504) — a quantified tradeoff rather than an assumed one. ONNX on edge CPU delivered a 57.5% reduction (386.9ms → 164.2ms).
+**Symptom:** Two different "augmented model" mAP numbers (0.942 and 0.954) and a baseline that could not be compared to either.
 
-**Lesson:** A benchmark is only as credible as its methodology. Reporting mean-only latency from a single run, or reporting a speed gain without checking whether accuracy held, are both easy to do and both undermine the credibility of every other number in the README. This is the same principle as Bugs 1–6: don't let a pipeline stage produce a number (or a label, or a file) that hasn't been explicitly validated.
+**Root cause:** (1) Augmentation was regenerated in every Colab session without a seed, so the validation set changed between sessions (152 to 160 images). (2) The baseline cell built its own random split of the originals, so baseline and augmented models were scored on different images. (3) The reported checkpoint came from early stopping plus extended training from `best.pt`, i.e. it was selected using the same validation images that were reported.
+
+**Fix:** Seeded the augmentation pipeline, froze the split (manifests plus a SHA-256 fingerprint of each manifest, stored in `splits/`), scored every model and export on the same 57 original validation images, and reported final-epoch weights with fixed, pre-registered hyperparameters (no early stopping). During the rerun, a Colab disconnect interrupted the augmented run, which was resumed from `last.pt` at epoch 96 of 100; hyperparameters were unchanged.
+
+**Lesson:** A metric is only as good as the guarantee that it was measured on the same data. Freeze and fingerprint the evaluation set before comparing anything.
+
+---
+
+## Bug 9 — GaussNoise silently ignored its noise setting
+
+**Stage:** Augmentation
+
+**Symptom:** A single `UserWarning` in the augmentation cell: `Argument(s) 'var_limit' are not valid for transform GaussNoise`. No error, no visible failure.
+
+**Root cause:** Albumentations 2.x replaced `var_limit` with `std_range`. The unknown argument was ignored and the transform fell back to its default, `std_range=(0.2, 0.44)` (noise std of roughly 51 to 112 on a 0-255 scale) instead of the intended variance 10-40 (std of roughly 3.2 to 6.3). That is about 16 times stronger, applied to about 30% of the general-transform augmentations.
+
+**Fix:** `A.GaussNoise(std_range=(0.0124, 0.0248), p=0.3)` (the same intended level in the 2.x API), plus a printed check of the transform's effective parameters.
+
+**Lesson:** Treat library warnings in a data pipeline as failures. Pin library versions and print the effective configuration of every transform.
 
 ---
 
@@ -182,7 +183,7 @@ metrics = trt_model.val(data='big_cola.yaml')  # compare mAP50-95 vs. PyTorch ba
 
 ## Architectural Principles Applied After Debugging
 
-These seven issues led directly to the following design rules that are now encoded into the pipeline architecture:
+These nine issues led directly to the following design rules that are now encoded into the pipeline architecture:
 
 1. **Idempotency** — every run produces the same output regardless of previous state (OUTPUT_DIR wipe enforces this)
 2. **No silent failures** — every validation step either passes with a confirmation message or raises a hard assertion, never continues quietly with bad data
@@ -190,6 +191,9 @@ These seven issues led directly to the following design rules that are now encod
 4. **Dynamic path resolution** — file paths are resolved fresh at the point of use, never cached across stages that modify the filesystem
 5. **Separation of raw and derived data** — the original labeled dataset is never modified by the pipeline; all transforms operate on copies
 6. **No unvalidated performance claims** — latency numbers are only reported as distributions (mean/P50/P99) over repeated, warm-up-adjusted runs, and any optimization that changes numerical precision (e.g. FP16 quantization) must have its accuracy impact measured, not assumed
+
+7. **Frozen, fingerprinted evaluation** — the validation split is generated once, stored as manifests with SHA-256 fingerprints, and every model and export is scored on the same held-out original images with fixed hyperparameters and final-epoch weights
+8. **Warnings are failures** — library warnings in the data pipeline are investigated, library versions are pinned, and the effective configuration of every transform is printed
 
 ---
 

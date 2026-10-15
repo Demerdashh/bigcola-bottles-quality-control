@@ -215,7 +215,7 @@ mAP50 and recall are saturated for both runs (every bottle is found), so the gai
 ![Training curves](./assets/training_curves.png)
 ![Confusion matrix](./assets/confusion_matrix_normalized.png)
 
-*Plots are Ultralytics' own output from the augmented run; the headline numbers above come from the separate 57-image scoring.*
+*Plots are Ultralytics' own output from the augmented run, validated on the same 57 original images. Ultralytics draws its end-of-training plots from its `best.pt` checkpoint, which may differ from the final-epoch `last.pt` scored above; the headline numbers come from the separate 57-image scoring of `last.pt`.*
 
 Weights: `models/best_bigcola.pt` (SHA-256 `f18eb0f27f2b67f5490be8a11d6002834ed810cf07294ebac1b00150ec2f0d8d`). Full metrics, versions and hashes: [`results/rerun_results.json`](./results/rerun_results.json). Model metadata: [`model_card.json`](./model_card.json).
 
@@ -234,7 +234,7 @@ The augmented model (**YOLO26n**, ~2.4M parameters, 640×640) was exported to Te
 | **TensorRT FP16** | **0.978** | **3.96 ms** | **3.85 ms** | **4.91 ms** | 118.0 ms | 189.8 ms |
 | TensorRT INT8 | 0.961 | 4.29 ms | 4.32 ms | 6.00 ms | 117.1 ms | 207.0 ms |
 
-**FP16 is the deployment choice:** mean latency −67% (11.98 → 3.96 ms) and p99 −76% (20.18 → 4.91 ms), with **no measurable accuracy change** (+0.13 points, within noise on 57 images).
+**FP16 is the deployment choice:** mean latency −67% (11.98 → 3.96 ms) and p99 −76% (20.18 → 4.91 ms), with **no measurable accuracy change** (+0.13 points, within noise on 57 images). The FP16 export is mixed precision (Ultralytics converts the ONNX graph with ModelOpt AutoCast), not a uniform FP16 cast.
 
 **INT8 was evaluated and rejected:** −1.6 points mAP50-95 overall (worst classes: crooked_cap −3.7, no_label −3.4, no_cap −2.2; calibrated on 500 *training* images), and it is not faster than FP16 at batch 1. A likely reason is that a 2.4M-parameter model is overhead-bound rather than compute-bound on a T4 at batch 1 (a hypothesis; not profiled).
 

@@ -1,12 +1,11 @@
 # 🍶 Big Cola — Industrial Bottle Quality Control Pipeline
 
-A **production-grade Computer Vision pipeline** that detects and classifies **Big Cola bottle conditions** on a **simulated factory conveyor belt** using a custom-built dataset and **YOLO26n (Ultralytics)**.  
-Built entirely from scratch: physical data collection, manual annotation, augmentation engineering, reproducible training experiments, real-time video inference, and multi-target inference optimization (ONNX + TensorRT).
+An **end-to-end computer vision pipeline** that detects and classifies **Big Cola bottle conditions** on a **simulated factory conveyor belt** using a custom-built dataset and **YOLO26n (Ultralytics)**.  
+Built from scratch: physical data collection, manual annotation, augmentation engineering, a frozen and fingerprinted evaluation split, controlled training experiments, and TensorRT FP16/INT8 inference optimization with accuracy re-validated after every export.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![[YOLO26n]](https://img.shields.io/badge/YOLO26n-Object%20Detection-green)
-![ONNX](https://img.shields.io/badge/ONNX-Runtime-lightgrey)
-![TensorRT](https://img.shields.io/badge/TensorRT-FP16-76B900)
+![YOLO26n](https://img.shields.io/badge/YOLO26n-Object%20Detection-green)
+![TensorRT](https://img.shields.io/badge/TensorRT-FP16%20%7C%20INT8-76B900)
 ![Albumentations](https://img.shields.io/badge/Albumentations-Augmentation-orange)
 ![OpenCV](https://img.shields.io/badge/OpenCV-Image%20Processing-red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
@@ -14,6 +13,8 @@ Built entirely from scratch: physical data collection, manual annotation, augmen
 ---
 
 ![Conveyor Belt Inference Demo](./assets/gif_inference.gif)
+
+*Demo recorded with an earlier training run of this project. All metrics in this README come from the October 2026 clean rerun.*
 
 ---
 
@@ -38,17 +39,17 @@ Built entirely from scratch: physical data collection, manual annotation, augmen
 Most student machine learning projects start with a downloaded dataset.  
 This one started with a **trip to the supermarket**.
 
-Building a real industrial quality-control system from zero means solving problems that tutorials never mention: inconsistent label formats, coordinate corruption during augmentation, stale output files silently poisoning training runs, and the challenge of simulating a factory environment with no factory access. It also means asking what happens *after* training finishes — a model that only runs well in a Colab notebook isn't production-ready, so this project pushes the trained model through two real deployment targets and measures the cost of getting there.
+Building an industrial-style quality-control system from zero means solving problems that tutorials never mention: inconsistent label formats, coordinate corruption during augmentation, stale output files silently poisoning training runs, a validation set that quietly changes between sessions, and the challenge of simulating a factory environment with no factory access. It also means asking what happens *after* training finishes: this project pushes the trained model through TensorRT FP16 and INT8 exports and measures the cost of getting there.
 
 This project demonstrates how to:
 - **Design and capture** a controlled industrial dataset from physical products
 - **Engineer a robust pipeline** with validation gates, dataset fingerprinting, and reproducible experiments
 - **Apply and validate** image augmentation without corrupting bounding box coordinates
-- **Measure the real impact** of augmentation through a baseline vs. augmented training comparison
-- **Run memory-efficient** real-time inference on video using `stream=True`
-- **Optimize for deployment** across edge CPU and cloud GPU targets via ONNX and TensorRT FP16, with accuracy validated post-quantization — not just latency
+- **Measure the real impact** of augmentation: baseline vs. augmented, scored on the same frozen validation images
+- **Optimize for deployment** on a cloud GPU via TensorRT FP16 and INT8, with accuracy re-validated after each export, not just latency
+- **Audit your own results:** the October 2026 rerun exists because two flaws were found in the original pipeline (Bugs 8 and 9 in the debrief) and fixed
 
-Six critical pipeline bugs were encountered, diagnosed, and fixed during development. All six are documented in [`docs/engineering_debrief.md`](./docs/engineering_debrief.md).
+Eight pipeline bugs and one benchmarking lesson were found, diagnosed, and fixed during development. All nine entries are documented in [`docs/engineering_debrief.md`](./docs/engineering_debrief.md).
 
 ---
 
@@ -58,17 +59,16 @@ Six critical pipeline bugs were encountered, diagnosed, and fixed during develop
 flowchart LR
     A[📷 Raw Images\n376 manually captured] --> B[✅ Dataset Validation\nParity · Normalization · SHA-256]
     B --> C[⚙️ Augmentation\nAlbumentations · Class Balancing]
-    C --> D[✂️ Train / Val Split\nLeakage-safe · Stem-grouped]
+    C --> D[✂️ Train / Val Split\nLeakage-safe · Scene-grouped · Frozen]
     D --> E[🧠 Baseline Training\nOriginals only]
     D --> F[🧠 Augmented Training\nBalanced dataset]
-    E --> G[📊 mAP Comparison\nBaseline vs. Augmented]
+    E --> G[📊 mAP Comparison\n57 held-out original images]
     F --> G
-    G --> H[🎥 Video Inference\nstream=True · Real-time]
-    H --> I[⚡ Export & Optimize\nONNX · TensorRT FP16]
-    I --> J[📉 Latency + Accuracy Validation\nEdge CPU · Cloud GPU]
+    G --> I[⚡ Export & Optimize\nTensorRT FP16 · INT8]
+    I --> J[📉 Latency + Accuracy Validation\nTesla T4 GPU]
 ```
 
-The pipeline is structured across **sequential phases**, each with its own validation layer before proceeding to the next — culminating in a deployment-optimization stage that validates both speed *and* accuracy on the final exported formats.
+The pipeline is structured across **sequential phases**, each with its own validation layer before proceeding to the next, ending in a deployment-optimization stage that validates both speed *and* accuracy on every exported format.
 
 ---
 
@@ -78,37 +78,36 @@ The pipeline is structured across **sequential phases**, each with its own valid
 bigcola-bottles-quality-control/
 │
 ├── README.md                        ← You are here
-├── Big_Cola_QualCtrl.ipynb          ← Full pipeline notebook (training + optimization, Google Colab)
-├── big_cola.yaml                    ← YOLO dataset configuration
+├── Big_Cola_QualCtrl.ipynb          ← Executed clean rerun (Google Colab), outputs included
+├── big_cola.yaml                    ← YOLO dataset configuration (Colab paths)
 ├── requirements.txt                 ← Pinned dependencies
-├── model_card.json                  ← Model metadata, metrics, dataset hash
+├── model_card.json                  ← Model metadata, metrics, hashes
 ├── LICENSE                          ← MIT
 ├── .gitignore
 │
 ├── models/
-│   ├── best_bigcola.pt              ← PyTorch baseline weights
-│   ├── best_bigcola.onnx            ← ONNX-exported weights
-│   └── best_bigcola.fp16.onnx       ← ONNX-exported with half-precision
-│   (TensorRT .engine intentionally not committed — see note below)
+│   └── best_bigcola.pt              ← Final-epoch weights (last.pt) of the augmented run
+│   (TensorRT .engine files are intentionally not committed — see note below)
 │
-├── benchmarks/
-│   ├── cpu_benchmark.py              ← Used python script to get cpu benchmark
-│   └── optimization_benchmarks.csv   ← Raw benchmark results (all environments/formats)
+├── splits/                          ← Frozen train/val manifests + SHA-256 fingerprints
+│
+├── results/
+│   ├── rerun_results.json           ← All metrics, latencies, versions, hashes
+│   └── rerun_summary.csv            ← Summary table (accuracy + latency per format)
 │
 ├── docs/
-│   ├── engineering_debrief.md       ← 7-entry post-mortem (6 pipeline bugs + optimization notes)
+│   ├── engineering_debrief.md       ← 9-entry post-mortem (8 pipeline bugs + 1 benchmarking lesson)
 │   └── dataset_card.md              ← Dataset construction, classes, capture methodology
 │
 └── assets/
-    ├── gif_inference.gif            ← Real-time conveyor belt inference demo
-    ├── class_distribution.png      ← Class balance before and after augmentation
-    ├── training_curves.png         ← Loss and mAP curves — main training run
-    ├── training_curves_extended.png ← Extended training run curves
-    ├── confusion_matrix.png        ← Validation confusion matrix
-    └── augmented_samples.png       ← Side-by-side original vs. augmented examples
+    ├── gif_inference.gif            ← Conveyor belt inference demo (earlier training run)
+    ├── class_distribution.png       ← Class balance before and after augmentation
+    ├── training_curves.png          ← Ultralytics loss and mAP curves, augmented run
+    ├── confusion_matrix_normalized.png ← Confusion matrix, augmented run
+    └── augmentation_samples.png     ← Original vs. augmented examples
 ```
 
-> **Note on the `.engine` file:** TensorRT engines are compiled for a specific GPU architecture and TensorRT version, so the file built on Colab's T4 isn't portable to other hardware. It's excluded via `.gitignore`; instead, the exact export command and environment versions are documented below so results are reproducible rather than just replayable.
+> **Note on the `.engine` files:** TensorRT engines are compiled for a specific GPU architecture and TensorRT version, so an engine built on Colab's T4 isn't portable to other hardware. They are excluded via `.gitignore`; the exact export commands and environment versions are documented below so results are reproducible rather than just replayable.
 
 ---
 
@@ -119,13 +118,12 @@ bigcola-bottles-quality-control/
 | **End-to-End Ownership** 🔨 | Dataset designed, captured, and annotated entirely by the author — no pre-existing data used |
 | **Industrial Simulation** 🏭 | Black paper background and tripod-controlled capture to replicate conveyor belt conditions |
 | **Validation Gates** 🛡️ | Hard assertions on label parity, coordinate bounds, and class ID format before any training proceeds |
-| **Dataset Fingerprinting** 🔑 | SHA-256 hash of the raw label directory stored in the model card — guarantees reproducibility |
-| **Class Balancing** ⚖️ | Albumentations augmentation pipeline targets a minimum of 250 samples per class |
-| **Controlled Experiments** 🔬 | Baseline (originals only) vs. augmented run — mAP delta measured and recorded |
-| **Memory-Efficient Inference** 🎥 | `stream=True` generator pattern for real-time video inference without memory overflow |
-| **Multi-Target Optimization** ⚡ | ONNX export for edge CPU + TensorRT FP16 for cloud GPU, each benchmarked independently |
-| **Post-Quantization Validation** ✅ | Accuracy (mAP50-95) re-measured after FP16 quantization, not assumed unchanged |
-| **7-Entry Post-Mortem** 📝 | All pipeline and optimization failures documented with root cause, diagnosis, and fix |
+| **Dataset Fingerprinting** 🔑 | SHA-256 of the raw labels plus frozen, hashed train/val manifests in `splits/` |
+| **Class Balancing** ⚖️ | Albumentations pipeline targets a minimum of 250 instances per class |
+| **Controlled Experiments** 🔬 | Baseline vs. augmented on the same frozen validation images: +2.4 points mAP50-95 |
+| **GPU Optimization** ⚡ | TensorRT FP16 vs INT8 on a Tesla T4, one shared timing loop, model-only and end-to-end latency |
+| **Post-Quantization Validation** ✅ | Accuracy (mAP50-95) re-measured after every TensorRT export (FP16 and INT8), not assumed unchanged |
+| **9-Entry Post-Mortem** 📝 | All pipeline and optimization failures documented with root cause, diagnosis, and fix |
 
 ---
 
@@ -141,31 +139,22 @@ Before a single image is augmented or trained on, the pipeline verifies:
 A hard assertion gate stops execution if any check fails.
 
 ### Phase 2 — Augmentation
-Albumentations transforms are applied with YOLO-format bounding box passthrough — coordinates are never manually converted before passing to the library. Transform parameters are kept conservative to prevent coordinate clamping artifacts (see Bug 4 in [`engineering_debrief.md`](./docs/engineering_debrief.md)).
-
-The `OUTPUT_DIR` is wiped completely before every run to enforce idempotency.
+Albumentations transforms are applied with YOLO-format bounding box passthrough: coordinates are never manually converted before passing to the library. Transform parameters are kept conservative to prevent coordinate clamping artifacts (Bug 4), and the noise transform is configured through the Albumentations 2.x API with its effective parameters checked (Bug 9). Augmentation is seeded.
 
 ![Augmentation Examples](./assets/augmentation_samples.png)
 
 ### Phase 3 — Train / Val Split
-The split is grouped by **original image stem**. All augmented variants of a source image are always assigned to the same partition as their source, preventing label leakage between train and validation sets.
+The split is grouped by **source scene**: all augmented variants of an image always go to the same partition as their source, preventing leakage between train and validation sets. The split is then **frozen**: manifests and their SHA-256 fingerprints are stored in [`splits/`](./splits/), and the exact dataset is archived, so every model and every export is scored on identical images.
 
 ### Phase 4 — Training Experiments
-Two sequential training runs are executed:
-- **Baseline:** Trained on original images only — establishes the performance floor
-- **Augmented:** Trained on the balanced augmented dataset — measures augmentation impact
+Two training runs share one fixed recipe (YOLO26n, AdamW, 100 epochs, 640×640, batch 16, seed 42, no early stopping):
+- **Baseline:** original training images only: establishes the performance floor
+- **Augmented:** same scenes plus class-balancing augmentation: measures augmentation impact
 
-![Training Curves](./assets/training_curves.png)
+Both are scored on the same 57 held-out original images, using final-epoch weights.
 
-### Phase 5 — Inference
-The trained model processes the test video using `stream=True` for frame-by-frame generator-based inference, avoiding memory accumulation over long video sequences.
-
-### Phase 6 — Optimization & Export
-The best-performing (augmented) model is exported to two deployment targets:
-- **ONNX** for lightweight, dependency-light edge CPU inference
-- **TensorRT (FP16)** for maximum-throughput cloud GPU inference
-
-Both exports are benchmarked for latency **and** re-validated for accuracy — quantization is treated as a tradeoff to measure, not assume away. See [Optimization & Deployment Benchmarks](#optimization-benchmarks) below.
+### Phase 5 — Optimization & Export
+The augmented model's final-epoch weights are exported to **TensorRT FP16** and **TensorRT INT8** (calibrated on 500 training images) and benchmarked on a Tesla T4 with one shared timing loop. Every format is re-scored for accuracy on the same 57 held-out original images, so quantization is measured as a tradeoff, not assumed away. See [Optimization & Deployment Benchmarks](#optimization-benchmarks) below.
 
 ---
 
@@ -178,7 +167,8 @@ The dataset was built entirely from scratch using physical Big Cola bottles and 
 | **Total images** | 376 |
 | **Classes** | 5 |
 | **Annotation format** | YOLO (normalized) |
-| **Augmentation target** | 250 images per class |
+| **Augmentation target** | 250+ instances per class |
+| **Train / val (after augmentation)** | 907 images (319 scenes) / 160 images (57 scenes) |
 | **Environment simulation** | Black paper background + tripod |
 
 ### Classes
@@ -201,46 +191,60 @@ For full dataset construction details, see [`docs/dataset_card.md`](./docs/datas
 
 ## 📈 Results <a name="results"></a>
 
-| Run | Training Data | mAP50 | mAP50-95 | Precision | Recall |
+**Evaluation protocol.** The train/val split is grouped by source scene, so augmented copies of a scene never cross the split. All models are scored on the **57 held-out original (non-augmented) validation images** (96 boxes). The split is frozen: each manifest in [`splits/`](./splits/) carries a SHA-256 fingerprint (hash of its sorted entries) in `splits/hashes.json`. Reported weights are the **final epoch** (`last.pt`): no checkpoint was selected using the evaluation images. Hyperparameters were fixed before training and are identical for both runs.
+
+| Run | Training data | mAP50 | mAP50-95 | Precision | Recall |
 |:---|:---|:---:|:---:|:---:|:---:|
-| Baseline | Originals only (376 images) | 0.8788 | 0.8246 | 0.9203 | 0.9276 |
-| Augmented | Balanced augmented dataset | 0.9950 | 0.9424 | 0.9899 | 0.9974 |
+| Baseline | 319 original training images | 0.995 | 0.953 | 0.996 | 1.000 |
+| Augmented | Same 319 scenes + class-balancing augmentation | 0.995 | **0.977** | 0.997 | 1.000 |
 
-![Confusion Matrix](./assets/confusion_matrix_normalized.png)
+Augmentation adds **+2.4 points mAP50-95** on the same validation images, and every class improves:
 
-> Model metadata, dataset hash, and full metric details are in [`model_card.json`](./model_card.json).
+| Class | Val boxes | Baseline | Augmented | Δ (points) |
+|:---|:---:|:---:|:---:|:---:|
+| Perfect_bottle | 29 | 0.958 | 0.963 | +0.5 |
+| empty_bottle | 20 | 0.926 | 0.968 | +4.2 |
+| no_cap | 19 | 0.937 | 0.971 | +3.5 |
+| no_label | 13 | 0.967 | 0.988 | +2.1 |
+| crooked_cap | 15 | 0.979 | 0.995 | +1.6 |
+
+mAP50 and recall are saturated for both runs (every bottle is found), so the gain is in **box tightness at strict IoU thresholds**, which only mAP50-95 shows.
+
+> **Caveats:** 57 images and a single seed. Per-class differences of a point or two are within noise; the overall direction (all five classes up) is the meaningful signal. The augmented run was interrupted by a Colab disconnect and resumed from `last.pt` at epoch 96 of 100; hyperparameters are unchanged and the reported weights are the final-epoch `last.pt`.
+
+![Training curves](./assets/training_curves.png)
+![Confusion matrix](./assets/confusion_matrix_normalized.png)
+
+*Plots are Ultralytics' own output from the augmented run; the headline numbers above come from the separate 57-image scoring.*
+
+Weights: `models/best_bigcola.pt` (SHA-256 `f18eb0f27f2b67f5490be8a11d6002834ed810cf07294ebac1b00150ec2f0d8d`). Full metrics, versions and hashes: [`results/rerun_results.json`](./results/rerun_results.json). Model metadata: [`model_card.json`](./model_card.json).
 
 ---
 
 ## ⚡ Optimization & Deployment Benchmarks <a name="optimization-benchmarks"></a>
 
-The augmented model (**YOLO26n** — 122 layers, 2.37M parameters, 5.2 GFLOPs, 640×640 input) was exported and benchmarked across two independent deployment targets to validate both **edge** and **cloud** production scenarios.
+The augmented model (**YOLO26n**, ~2.4M parameters, 640×640) was exported to TensorRT FP16 and INT8 and benchmarked on a **Tesla T4** with one shared timing loop: batch 1, 50 warm-up calls discarded, 500 timed calls, CUDA-synchronized.
 
-### Edge CPU — Intel Core i7-8550U
+- **Model-only:** a 640×640 tensor already on the GPU, timed through the Ultralytics predictor (includes its pre/post-processing; excludes JPEG decode, resize and host-to-GPU copy).
+- **End-to-end:** from a JPEG file path (12 MP image decode + resize + inference + post-processing).
 
-| Format | Precision | Mean Latency | Throughput | Result |
-|:---|:---:|:---:|:---:|:---|
-| PyTorch (baseline) | FP32 | 386.9 ms | 2.6 FPS | unoptimized baseline |
-| **ONNX Runtime** | FP32 | **164.2 ms** | **6.1 FPS** | **57.5% faster** |
+| Format | mAP50-95 | Model-only mean | p50 | p99 | End-to-end p50 | p99 |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| PyTorch FP32 | 0.977 | 11.98 ms | 11.35 ms | 20.18 ms | 126.2 ms | 206.7 ms |
+| **TensorRT FP16** | **0.978** | **3.96 ms** | **3.85 ms** | **4.91 ms** | 118.0 ms | 189.8 ms |
+| TensorRT INT8 | 0.961 | 4.29 ms | 4.32 ms | 6.00 ms | 117.1 ms | 207.0 ms |
 
-### Cloud GPU — NVIDIA T4 (Google Colab)
+**FP16 is the deployment choice:** mean latency −67% (11.98 → 3.96 ms) and p99 −76% (20.18 → 4.91 ms), with **no measurable accuracy change** (+0.13 points, within noise on 57 images).
 
-| Format | Precision | Metric | Value | Result |
-|:---|:---:|:---|:---:|:---|
-| PyTorch (baseline) | FP32 | Mean Latency | 13.95 ms | unoptimized baseline |
-| PyTorch (baseline) | FP32 | Accuracy (mAP50-95) | 0.9540 | reference validation score |
-| **TensorRT Engine** | **FP16** | Mean Latency | **5.61 ms** | **59.8% faster than GPU baseline** |
-| **TensorRT Engine** | FP16 | P50 (Median) | 5.51 ms | typical real-world frame speed |
-| **TensorRT Engine** | FP16 | P99 (Worst Case) | 8.82 ms | production-relevant latency ceiling |
-| **TensorRT Engine** | FP16 | Accuracy (mAP50-95) | 0.9504 | **negligible 0.36% drop vs. baseline** |
+**INT8 was evaluated and rejected:** −1.6 points mAP50-95 overall (worst classes: crooked_cap −3.7, no_label −3.4, no_cap −2.2; calibrated on 500 *training* images), and it is not faster than FP16 at batch 1. A likely reason is that a 2.4M-parameter model is overhead-bound rather than compute-bound on a T4 at batch 1 (a hypothesis; not profiled).
 
-**Why this matters:** FP16 quantization is a known accuracy risk, not a free win — mAP50-95 was re-measured on the exported engine rather than assumed unchanged, confirming the 59.8% latency gain came at a **0.36% accuracy cost**, not a hidden one. At 198+ effective FPS headroom, GPU inference is no longer the bottleneck for a conveyor-belt-speed use case; the binding constraint shifts to camera capture rate and upstream I/O.
+**Where the time actually goes:** end-to-end, inference is ~3% of the latency (≈4 ms of ≈118–126 ms); decoding and resizing 12 MP JPEGs dominates. On a real line, the next gains come from capturing at a lower resolution or decoding on the GPU, not from a faster model.
 
 **Reproducibility:**
-- Export commands: `model.export(format='onnx')` and `model.export(format='engine', half=True, workspace=4)`
-- Latency figures are mean/P50/P99 over repeated inference passes at batch size = 1, discarding initial warm-up iterations
-- Full raw results: [`benchmarks/optimization_benchmarks.csv`](./benchmarks/optimization_benchmarks.csv)
-- Environment: TensorRT 10.x, CUDA 12.x, Google Colab T4 GPU (cloud) / Intel Core i7-8550U (edge CPU)
+- Exports: `model.export(format='engine', quantize=16)` and `model.export(format='engine', quantize=8, data=<calibration yaml>)`
+- Environment: Ultralytics 8.4.175, PyTorch 2.11.0+cu130, CUDA 13.0, TensorRT 11.4.0.106, Albumentations 2.0.8, Tesla T4 (Google Colab)
+- `.engine` files are not committed: they are tied to the GPU architecture and TensorRT version.
+- Raw numbers: [`results/rerun_summary.csv`](./results/rerun_summary.csv)
 
 ---
 
@@ -248,10 +252,9 @@ The augmented model (**YOLO26n** — 122 layers, 2.37M parameters, 5.2 GFLOPs, 6
 
 - Python 3.10+
 - Ultralytics (YOLO26n)
-- Albumentations ≥ 1.3.0
+- Albumentations 2.x
 - OpenCV (`cv2`)
-- ONNX Runtime
-- TensorRT (for GPU export/benchmarking only — not required for CPU/ONNX inference)
+- TensorRT (GPU export/benchmarking only — not needed to run the `.pt` weights)
 - NumPy
 - Matplotlib
 - PyYAML
@@ -262,7 +265,7 @@ Install all dependencies:
 pip install -r requirements.txt
 ```
 
-> **Platform note:** This project was developed and trained on **Google Colab** with data stored on **Google Drive**. The notebook is fully self-contained — mount your Drive, update the path variables in the config cell, and run all cells sequentially. TensorRT benchmarking requires a CUDA-capable GPU (Colab T4 or equivalent); the ONNX/CPU benchmark can be reproduced on any machine.
+> **Platform note:** This project was developed and trained on **Google Colab** with data stored on **Google Drive**. The notebook is self-contained: mount your Drive, update the path variables in its Config cell, and run the cells in order. TensorRT export and benchmarking require a CUDA-capable GPU (a Colab T4 was used).
 
 ---
 
@@ -280,32 +283,26 @@ pip install -r requirements.txt
 ```
 
 ### 3. Open in Google Colab
-Upload `Big_Cola_QualCtrl.ipynb` to Google Colab and mount your Drive.
-
-Update the config cell at the top of the notebook:
-```python
-DATA_DIR   = Path('/content/drive/MyDrive/YOUR_DATA_FOLDER')
-OUTPUT_DIR = Path('/content/ed_data')
-WEIGHTS_DIR = Path('/content/drive/MyDrive/YOUR_WEIGHTS_FOLDER')
-```
+Upload `Big_Cola_QualCtrl.ipynb` to Google Colab, mount your Drive, and set the path variables in the notebook's Config cell.
 
 ### 4. Run the Pipeline
-Execute cells sequentially — each phase validates before proceeding:
-1. **Environment Setup** — installs dependencies, locks seed
-2. **Dataset Validation** — parity checks, label normalization, SHA-256 fingerprint
-3. **Augmentation** — generates balanced dataset in `OUTPUT_DIR`
-4. **Train / Val Split** — leakage-safe split grouped by image stem
-5. **Training & Evaluation** — baseline run → augmented run → mAP comparison
-6. **Video Inference** — runs the trained model on your test video
-7. **Optimization & Export** — exports to ONNX and TensorRT FP16, benchmarks latency and re-validates accuracy on each format
+Execute the cells in order. Each phase validates before proceeding:
+1. **Pre-flight** — installs and checks every TensorRT dependency before any training. It stops on purpose; restart the session and run all again.
+2. **Dataset validation** — parity checks, label normalization, SHA-256 fingerprint
+3. **Augmentation** — generates the balanced dataset (a guard cell stops it from overwriting a dataset already frozen on Drive)
+4. **Train / val split and freeze** — scene-grouped split, manifests and hashes
+5. **Training and evaluation** — baseline run → augmented run → both scored on the 57 original validation images
+6. **Export and benchmark** — TensorRT FP16 and INT8, accuracy and latency per format, results written to `rerun_results.json` and `rerun_summary.csv`
 
-> If you hit a `FileNotFoundError` on the YAML path, your Colab runtime disconnected before the YAML cell saved. Re-run the YAML cell above the training cell first.
+> The notebook in this repo is the executed run, so a few cells show errors on purpose or because they were re-run after a restart. A note at the top of the notebook explains each one.
+>
+> After a Colab disconnect: mount Drive first and check the mount, then run the setup, Config, Restore and Build-YAMLs cells. Interrupted training resumes from `last.pt` on Drive.
 
 ---
 
 ## 👤 Author <a name="author"></a>
 
-Built with ❤️ by **Youssef El Demerdash**
+Built by **Youssef El Demerdash**
 
 - [LinkedIn](https://www.linkedin.com/in/youssef-eldemerdash-754674378/)
 - [GitHub](https://github.com/Demerdashh)

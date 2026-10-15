@@ -1,13 +1,12 @@
-# Jupyter 
-.ipynb_checkpoints/         # auto-created every time you open a notebook
+# Jupyter
+.ipynb_checkpoints/
 
 # YOLO training output
-runs/    
+runs/
 
 obj_train_data/
 augmented_data/
 datasets/
-
 
 __pycache__/
 *.pyc
@@ -16,5 +15,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# YOLO model built only in colab and not portable to other hardware
-.engine
+# TensorRT engines are tied to the GPU architecture and TensorRT version
+*.engine

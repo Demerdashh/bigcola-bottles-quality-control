@@ -1,0 +1,144 @@
+{
+  "versions": {
+    "ultralytics": "8.4.175",
+    "torch": "2.11.0+cu130",
+    "cuda": "13.0",
+    "albumentations": "2.0.8",
+    "gpu": "Tesla T4",
+    "tensorrt": "11.4.0.106"
+  },
+  "seed": 42,
+  "hyperparameters": {
+    "epochs": 100,
+    "imgsz": 640,
+    "batch": 16,
+    "optimizer": "AdamW",
+    "seed": 42,
+    "deterministic": true,
+    "patience": 0,
+    "cache": "disk",
+    "workers": 2,
+    "device": 0,
+    "plots": true
+  },
+  "val_images_original_only": 57,
+  "val_instances_per_class": {
+    "Perfect_bottle": 29,
+    "empty_bottle": 20,
+    "no_cap": 19,
+    "no_label": 13,
+    "crooked_cap": 15
+  },
+  "manifest_hashes": {
+    "train_all": "14b08825558758a205692e9a29fc03ccfc58eb6bf8d7bd56898f8d9d68dc155b",
+    "train_orig": "4a98a8bbfb80b645d33f1be1bf83fc1727c610ae8453dc304c4a9799a6400b82",
+    "val_orig": "c9652ebc24f0848b529afad4a03b26c93d08ab9123f8f6f5b43c8aa629bac8b2",
+    "val_all": "725b643e746c295b6a81e0d0ba9bd57820fb19514bc7bcccd4850dcc14894e6d",
+    "source_label_hash": "26a0b22513643732"
+  },
+  "results": {
+    "pytorch_fp32": {
+      "map50_95": 0.9770467653457652,
+      "map50": 0.9949999999999999,
+      "precision": 0.9967553998123957,
+      "recall": 1.0,
+      "per_class_map50_95": {
+        "Perfect_bottle": 0.9631312626262627,
+        "empty_bottle": 0.9677341430499325,
+        "no_cap": 0.9713684210526315,
+        "no_label": 0.9880000000000001,
+        "crooked_cap": 0.9949999999999999
+      }
+    },
+    "baseline_pytorch_fp32": {
+      "map50_95": 0.9534282361721524,
+      "map50": 0.9949999999999999,
+      "precision": 0.9961058664991442,
+      "recall": 1.0,
+      "per_class_map50_95": {
+        "Perfect_bottle": 0.958486779560309,
+        "empty_bottle": 0.9258421052631578,
+        "no_cap": 0.9367456293706293,
+        "no_label": 0.967,
+        "crooked_cap": 0.9790666666666666
+      }
+    },
+    "trt_fp16": {
+      "map50_95": 0.9783374328984854,
+      "map50": 0.9949999999999999,
+      "precision": 0.9967760214869059,
+      "recall": 1.0,
+      "per_class_map50_95": {
+        "Perfect_bottle": 0.9703740740740742,
+        "empty_bottle": 0.9677341430499325,
+        "no_cap": 0.970578947368421,
+        "no_label": 0.9880000000000001,
+        "crooked_cap": 0.9949999999999999
+      }
+    },
+    "trt_int8": {
+      "map50_95": 0.9612796992481204,
+      "map50": 0.9949999999999999,
+      "precision": 0.9967781749807241,
+      "recall": 1.0,
+      "per_class_map50_95": {
+        "Perfect_bottle": 0.9715357142857142,
+        "empty_bottle": 0.9733223684210526,
+        "no_cap": 0.9498618421052631,
+        "no_label": 0.9536785714285715,
+        "crooked_cap": 0.958
+      }
+    }
+  },
+  "latency_ms": {
+    "pytorch_fp32": {
+      "model_only_tensor_on_gpu": {
+        "mean": 11.97541099996306,
+        "p50": 11.349014000188618,
+        "p95": 15.873110549819101,
+        "p99": 20.184992889244313,
+        "n": 500
+      },
+      "end_to_end_from_file": {
+        "mean": 137.08883583196803,
+        "p50": 126.176811500045,
+        "p95": 186.67441655134095,
+        "p99": 206.72251917027097,
+        "n": 500
+      }
+    },
+    "trt_fp16": {
+      "model_only_tensor_on_gpu": {
+        "mean": 3.9567113620214514,
+        "p50": 3.850641499411722,
+        "p95": 4.555788801371818,
+        "p99": 4.907552009826758,
+        "n": 500
+      },
+      "end_to_end_from_file": {
+        "mean": 126.54123883403372,
+        "p50": 117.97857800047495,
+        "p95": 167.73932070082083,
+        "p99": 189.84865857992182,
+        "n": 500
+      }
+    },
+    "trt_int8": {
+      "model_only_tensor_on_gpu": {
+        "mean": 4.294125177995738,
+        "p50": 4.316950500651728,
+        "p95": 4.961949100197671,
+        "p99": 5.9970404295199815,
+        "n": 500
+      },
+      "end_to_end_from_file": {
+        "mean": 128.07736235205812,
+        "p50": 117.14642000060849,
+        "p95": 179.1989503496552,
+        "p99": 207.04650240915726,
+        "n": 500
+      }
+    }
+  },
+  "notes": "last.pt reported (no checkpoint selection). rect=False for all evaluations. INT8 calibrated on 500 training images."
+}

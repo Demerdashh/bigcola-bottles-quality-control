@@ -1,21 +1,23 @@
 {
   "project": "Big Cola Bottle Quality Control",
-  "description": "End-to-end YOLOv8 object detection pipeline for industrial bottle quality control on a simulated conveyor belt. Dataset built from scratch via manual image capture and annotation.",
-
+  "description": "End-to-end YOLO26n object detection pipeline for industrial bottle quality control on a simulated conveyor belt. Dataset built from scratch via manual image capture and annotation.",
   "model": {
     "architecture": "YOLO26n",
     "weights_source": "Ultralytics pretrained (yolo26n.pt)",
+    "weights_file": "models/best_bigcola.pt (final-epoch last.pt of the augmented run)",
+    "weights_sha256": "f18eb0f27f2b67f5490be8a11d6002834ed810cf07294ebac1b00150ec2f0d8d",
     "optimizer": "AdamW",
     "imgsz": 640,
     "batch_size": 16,
-    "epochs_budget": 100,
-    "early_stopping_patience": 20,
-    "seed": 42
+    "epochs": 100,
+    "early_stopping_patience": 0,
+    "seed": 42,
+    "deterministic": true,
+    "note": "The augmented run was interrupted by a Colab disconnect and resumed from last.pt at epoch 96 of 100; hyperparameters unchanged."
   },
-
   "dataset": {
     "name": "Big Cola Bottles Quality Control Dataset",
-    "source": "Manually captured — physical bottles on a black-paper conveyor simulation",
+    "source": "Manually captured: physical bottles on a black-paper conveyor simulation",
     "num_classes": 5,
     "class_names": [
       "Perfect_bottle",
@@ -25,36 +27,91 @@
       "crooked_cap"
     ],
     "raw_images": 376,
-    "augmentation_target_per_class": 250,
-    "val_ratio": 0.15,
-    "augmentation_library": "Albumentations",
-    "dataset_hash_sha256_prefix": "26a0b22513643732"
+    "augmentation_target_per_class": "250+ instances",
+    "augmentation_library": "Albumentations 2.0.8 (seeded)",
+    "source_label_hash_sha256_prefix": "26a0b22513643732"
   },
-
   "training_split": {
-    "train_images": "907  (319 unique scenes)",
-    "val_images": "160  (57 unique scenes)",
-    "split_strategy": "Grouped by original image stem — augmented versions always in same split as their source image (leakage-safe)"
+    "train_images": "907 (319 unique scenes)",
+    "val_images": "160 (57 unique scenes)",
+    "evaluation_images": "57 original (non-augmented) validation images, 96 boxes",
+    "split_strategy": "Grouped by source scene: augmented versions always in the same split as their source image (leakage-safe). Frozen; manifests in splits/.",
+    "manifest_hashes_sha256": {
+      "train_all": "14b08825558758a205692e9a29fc03ccfc58eb6bf8d7bd56898f8d9d68dc155b",
+      "train_orig": "4a98a8bbfb80b645d33f1be1bf83fc1727c610ae8453dc304c4a9799a6400b82",
+      "val_orig": "c9652ebc24f0848b529afad4a03b26c93d08ab9123f8f6f5b43c8aa629bac8b2",
+      "val_all": "725b643e746c295b6a81e0d0ba9bd57820fb19514bc7bcccd4850dcc14894e6d"
+    },
+    "manifest_hash_method": "SHA-256 of the sorted manifest lines joined by newline"
   },
-
   "results": {
-    "run": "experiment_augmented",
-    "mAP50": "0.9950",
-    "mAP50_95": "0.9424",
-    "precision": "0.9899",
-    "recall": "0.9974"
+    "evaluated_on": "57 held-out original validation images",
+    "baseline_originals_only": {
+      "mAP50_95": 0.953,
+      "mAP50": 0.995,
+      "precision": 0.996,
+      "recall": 1.0
+    },
+    "augmented_pytorch_fp32": {
+      "mAP50_95": 0.977,
+      "mAP50": 0.995,
+      "precision": 0.997,
+      "recall": 1.0
+    },
+    "augmented_tensorrt_fp16": {
+      "mAP50_95": 0.978,
+      "mAP50": 0.995,
+      "precision": 0.997,
+      "recall": 1.0
+    },
+    "augmented_tensorrt_int8": {
+      "mAP50_95": 0.961,
+      "mAP50": 0.995,
+      "precision": 0.997,
+      "recall": 1.0
+    }
   },
-
+  "latency_tesla_t4_ms": {
+    "protocol": "batch 1, 50 warm-up calls discarded, 500 timed calls, CUDA-synchronized",
+    "pytorch_fp32": {
+      "model_only_mean": 11.98,
+      "model_only_p50": 11.35,
+      "model_only_p99": 20.18,
+      "end_to_end_p50": 126.2,
+      "end_to_end_p99": 206.7
+    },
+    "tensorrt_fp16": {
+      "model_only_mean": 3.96,
+      "model_only_p50": 3.85,
+      "model_only_p99": 4.91,
+      "end_to_end_p50": 118.0,
+      "end_to_end_p99": 189.8
+    },
+    "tensorrt_int8": {
+      "model_only_mean": 4.29,
+      "model_only_p50": 4.32,
+      "model_only_p99": 6.0,
+      "end_to_end_p50": 117.1,
+      "end_to_end_p99": 207.0
+    }
+  },
+  "decision": "TensorRT FP16 selected. INT8 rejected: -1.6 points mAP50-95 and no speedup over FP16 at batch 1.",
+  "environment": {
+    "ultralytics": "8.4.175",
+    "torch": "2.11.0+cu130",
+    "cuda": "13.0",
+    "albumentations": "2.0.8",
+    "gpu": "Tesla T4",
+    "tensorrt": "11.4.0.106"
+  },
   "limitations": [
-    "Trained on a simulated conveyor environment (black paper background) — may need fine-tuning for real factory lighting conditions",
-    "Small dataset (376 raw images) — performance on rare edge cases may degrade",
-    "3 missed detections observed on held-out test video — primarily low-contrast or partially occluded bottles"
+    "Trained on a simulated conveyor environment (black paper background); may need fine-tuning for real factory lighting conditions",
+    "Small dataset (376 raw images) and only 57 validation images; single seed. Per-class differences of a point or two are within noise",
+    "mAP50 and recall are saturated, so the augmentation gain is in box tightness (mAP50-95)",
+    "TensorRT engines are tied to the GPU architecture and TensorRT version and are not committed"
   ],
-
   "intended_use": "Quality control detection of Big Cola bottle conditions on a conveyor belt. Classifies bottles as perfect, empty, missing cap, missing label, or crooked cap.",
-
-  "pipeline_notes": "Six pipeline bugs were documented and fixed during development. Full post-mortem available in docs/engineering_debrief.md. Dataset fingerprinted with SHA-256 before training to ensure reproducibility.",
-
+  "pipeline_notes": "Nine issues (eight pipeline bugs and one benchmarking lesson) are documented in docs/engineering_debrief.md. Results come from the October 2026 clean rerun, which fixed Bug 8 (validation set changed between sessions) and Bug 9 (GaussNoise argument ignored).",
   "created_by": "Youssef El Demerdash",
   "framework": "Ultralytics YOLO26",
   "kaggle_dataset": "https://www.kaggle.com/datasets/youssefeldemerdashh/big-cola-bottles-dataset-for-yolo-quality-control"

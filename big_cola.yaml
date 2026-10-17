@@ -1,10 +1,10 @@
+# Colab paths used by the clean rerun (the notebook regenerates these files from splits/*.txt).
 path: /content/augmented_data
-train: /content/train_aug.txt
-val: /content/val_aug.txt
-nc: 5
+train: /content/rerun/train_all.txt
+val: /content/rerun/val_orig.txt
 names:
-- Perfect_bottle
-- empty_bottle
-- no_cap
-- no_label
-- crooked_cap
+  0: Perfect_bottle
+  1: empty_bottle
+  2: no_cap
+  3: no_label
+  4: crooked_cap

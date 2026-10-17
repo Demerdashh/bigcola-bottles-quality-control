@@ -215,7 +215,7 @@ mAP50 and recall are saturated for both runs (every bottle is found), so the gai
 ![Training curves](./assets/training_curves.png)
 ![Confusion matrix](./assets/confusion_matrix_normalized.png)
 
-*Plots are Ultralytics' own output from the augmented run, validated on the same 57 original images. Ultralytics draws its end-of-training plots from its `best.pt` checkpoint, which may differ from the final-epoch `last.pt` scored above; the headline numbers come from the separate 57-image scoring of `last.pt`.*
+*Plots are Ultralytics' own output from the augmented run, validated on the same 57 original images. The confusion matrix is drawn from Ultralytics' `best.pt` checkpoint, which differs from the final-epoch `last.pt` scored above; the headline numbers come from the separate 57-image scoring of `last.pt`.*
 
 Weights: `models/best_bigcola.pt` (SHA-256 `f18eb0f27f2b67f5490be8a11d6002834ed810cf07294ebac1b00150ec2f0d8d`). Full metrics, versions and hashes: [`results/rerun_results.json`](./results/rerun_results.json). Model metadata: [`model_card.json`](./model_card.json).
 

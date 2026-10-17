@@ -178,6 +178,8 @@ img = cv2.imread(str(img_path))
 | 5 | Visualizer fallback duplicating images | QA / Visualization | Manual grid inspection | Medium |
 | 6 | Stale path dictionary causing cv2 crash | Visualization | Intermittent crash (cv2.error) | Medium |
 | 7 | Unvalidated benchmark methodology (no warm-up/averaging, no post-quantization accuracy check) | Optimization | Statistical review of raw latency samples + re-run `model.val()` | Medium |
+| 8 | Validation set changed between sessions; baseline scored on a different split; checkpoint selected on the reported images | Evaluation | Two irreconcilable mAP values for the same model | High |
+| 9 | GaussNoise silently ignored its argument (Albumentations 2.x) | Augmentation | Single UserWarning in the cell output | Medium |
 
 ---
 

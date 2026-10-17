@@ -13,7 +13,7 @@
     "early_stopping_patience": 0,
     "seed": 42,
     "deterministic": true,
-    "note": "The augmented run was interrupted by a Colab disconnect and resumed from last.pt at epoch 96 of 100; hyperparameters unchanged."
+    "note": "The augmented run was interrupted by Colab disconnects and resumed from last.pt (the final resume started at epoch 96 of 100); hyperparameters unchanged."
   },
   "dataset": {
     "name": "Big Cola Bottles Quality Control Dataset",

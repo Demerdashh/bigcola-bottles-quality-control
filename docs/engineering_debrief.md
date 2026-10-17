@@ -147,7 +147,7 @@ img = cv2.imread(str(img_path))
 
 **Root cause:** (1) Augmentation was regenerated in every Colab session without a seed, so the validation set changed between sessions (152 to 160 images). (2) The baseline cell built its own random split of the originals, so baseline and augmented models were scored on different images. (3) The reported checkpoint came from early stopping plus extended training from `best.pt`, i.e. it was selected using the same validation images that were reported.
 
-**Fix:** Seeded the augmentation pipeline, froze the split (manifests plus a SHA-256 fingerprint of each manifest, stored in `splits/`), scored every model and export on the same 57 original validation images, and reported final-epoch weights with fixed, pre-registered hyperparameters (no early stopping). During the rerun, a Colab disconnect interrupted the augmented run, which was resumed from `last.pt` at epoch 96 of 100; hyperparameters were unchanged.
+**Fix:** Seeded the augmentation pipeline, froze the split (manifests plus a SHA-256 fingerprint of each manifest, stored in `splits/`), scored every model and export on the same 57 original validation images, and reported final-epoch weights with fixed, pre-registered hyperparameters (no early stopping). During the rerun, Colab disconnects interrupted the augmented run; it was resumed from `last.pt` each time (the final resume started at epoch 96 of 100) and hyperparameters were unchanged.
 
 **Lesson:** A metric is only as good as the guarantee that it was measured on the same data. Freeze and fingerprint the evaluation set before comparing anything.
 

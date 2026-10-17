@@ -210,7 +210,7 @@ Augmentation adds **+2.4 points mAP50-95** on the same validation images, and ev
 
 mAP50 and recall are saturated for both runs (every bottle is found), so the gain is in **box tightness at strict IoU thresholds**, which only mAP50-95 shows.
 
-> **Caveats:** 57 images and a single seed. Per-class differences of a point or two are within noise; the overall direction (all five classes up) is the meaningful signal. The augmented run was interrupted by a Colab disconnect and resumed from `last.pt` at epoch 96 of 100; hyperparameters are unchanged and the reported weights are the final-epoch `last.pt`.
+> **Caveats:** 57 images and a single seed. Per-class differences of a point or two are within noise; the overall direction (all five classes up) is the meaningful signal. The augmented run was interrupted by Colab disconnects and resumed from `last.pt` (the final resume started at epoch 96 of 100); hyperparameters are unchanged and the reported weights are the final-epoch `last.pt`.
 
 ![Training curves](./assets/training_curves.png)
 ![Confusion matrix](./assets/confusion_matrix_normalized.png)

@@ -59,7 +59,7 @@ Eight pipeline bugs and one benchmarking lesson were found, diagnosed, and fixed
 flowchart LR
     A[📷 Raw Images\n376 manually captured] --> B[✅ Dataset Validation\nParity · Normalization · SHA-256]
     B --> C[⚙️ Augmentation\nAlbumentations · Class Balancing]
-    C --> D[✂️ Train / Val Split\nLeakage-safe · Scene-grouped · Frozen]
+    C --> D[✂️ Train / Val Split\nLeakage-safe · image-grouped · Frozen]
     D --> E[🧠 Baseline Training\nOriginals only]
     D --> F[🧠 Augmented Training\nBalanced dataset]
     E --> G[📊 mAP Comparison\n57 held-out original images]
@@ -191,7 +191,7 @@ For full dataset construction details, see [`docs/dataset_card.md`](./docs/datas
 
 ## 📈 Results <a name="results"></a>
 
-**Evaluation protocol.** The train/val split is grouped by source scene, so augmented copies of a scene never cross the split. All models are scored on the **57 held-out original (non-augmented) validation images** (96 boxes). The split is frozen: each manifest in [`splits/`](./splits/) carries a SHA-256 fingerprint (hash of its sorted entries) in `splits/hashes.json`. Reported weights are the **final epoch** (`last.pt`): no checkpoint was selected using the evaluation images. Hyperparameters were fixed before training and are identical for both runs.
+**Evaluation protocol.** The train/val split is grouped by source scene ( taken images are from different scenes , so augmented copies of a scene never cross the split. All models are scored on the **57 held-out original (non-augmented) validation images** (96 boxes). The split is frozen: each manifest in [`splits/`](./splits/) carries a SHA-256 fingerprint (hash of its sorted entries) in `splits/hashes.json`. Reported weights are the **final epoch** (`last.pt`): no checkpoint was selected using the evaluation images. Hyperparameters were fixed before training and are identical for both runs.
 
 | Run | Training data | mAP50 | mAP50-95 | Precision | Recall |
 |:---|:---|:---:|:---:|:---:|:---:|
@@ -290,7 +290,7 @@ Execute the cells in order. Each phase validates before proceeding:
 1. **Pre-flight** — installs and checks every TensorRT dependency before any training. It stops on purpose; restart the session and run all again.
 2. **Dataset validation** — parity checks, label normalization, SHA-256 fingerprint
 3. **Augmentation** — generates the balanced dataset (a guard cell stops it from overwriting a dataset already frozen on Drive)
-4. **Train / val split and freeze** — scene-grouped split, manifests and hashes
+4. **Train / val split and freeze** — image-grouped split, manifests and hashes
 5. **Training and evaluation** — baseline run → augmented run → both scored on the 57 original validation images
 6. **Export and benchmark** — TensorRT FP16 and INT8, accuracy and latency per format, results written to `rerun_results.json` and `rerun_summary.csv`
 
